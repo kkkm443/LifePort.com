@@ -3,6 +3,7 @@ const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
+  './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
   'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
   'https://unpkg.com/@babel/standalone/babel.min.js',
