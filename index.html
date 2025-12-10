@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#3182F6">
-    <title>LifePort</title>
+    <title>LifePort - Realistic Logic</title>
     
     <!-- PWA 설정 -->
     <link rel="manifest" href="./manifest.json">
@@ -20,7 +20,12 @@
 
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        
+        /* 화면 꽉 차게 설정 및 중앙 정렬 */
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
         body { font-family: 'Pretendard', sans-serif; -webkit-tap-highlight-color: transparent; }
+        #root { height: 100%; display: flex; justify-content: center; align-items: center; }
+
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -89,12 +94,18 @@
                 pro: { title: '전문직', retirementAge: 68, investMin: 2.5, investMax: 5.5 }
             };
 
+            // [수정] 20대(기간제 변경) 및 50대 리스크 정의 수정
             const riskScenarios = {
-                20: [{ id: 'marriage', title: '💍 결혼/독립 자금', loss: 8000, prob: '70%' }, { id: 'car', title: '🚗 차량 구매', loss: 3000, prob: '60%' }],
-                30: [{ id: 'housing', title: '🏠 주택 대출 이자', loss: 10000, prob: '50%' }, { id: 'child', title: '👶 육아 비용', loss: 4000, prob: '40%' }],
-                40: [{ id: 'education', title: '🎓 자녀 교육비', loss: 12000, prob: '80%' }, { id: 'medical', title: '🏥 가족 의료비', loss: 5000, prob: '24%' }],
-                50: [{ id: 'business', title: '📉 투자 손실', loss: 15000, prob: '30%' }, { id: 'job', title: '💼 조기 퇴직', loss: 5000, prob: '15%' }],
-                60: [{ id: 'health', title: '🏥 노후 의료비', loss: 8000, prob: '35%' }, { id: 'scam', title: '💸 사기/분쟁', loss: 10000, prob: '15%' }]
+                // 20대: 결혼/차량을 일시불이 아닌 '할부/준비기간' 개념(period)으로 변경하여 즉시 파산 방지
+                20: [
+                    { id: 'marriage', title: '💍 결혼/독립 준비', loss: 8000, prob: '70%', period: 5 }, // 5년 상환/저축
+                    { id: 'car', title: '🚗 차량 할부 구매', loss: 3000, prob: '60%', period: 3 }     // 3년 할부
+                ],
+                30: [{ id: 'housing', title: '🏠 주택 대출 이자', loss: 10000, prob: '50%', period: 30 }, { id: 'child', title: '👶 육아 비용', loss: 4000, prob: '40%', period: 5 }],
+                40: [{ id: 'education', title: '🎓 자녀 교육비', loss: 12000, prob: '80%', period: 12 }, { id: 'medical', title: '🏥 가족 의료비', loss: 5000, prob: '24%' }],
+                // 50대: 조기 퇴직은 비용(loss)도 있지만 로직에서 '소득 중단'을 트리거함
+                50: [{ id: 'business', title: '📉 투자/사업 손실', loss: 15000, prob: '30%' }, { id: 'job', title: '💼 조기 퇴직', loss: 5000, prob: '15%' }],
+                60: [{ id: 'health', title: '🏥 노후 의료비', loss: 8000, prob: '35%', period: 20 }, { id: 'scam', title: '💸 사기/분쟁', loss: 10000, prob: '15%' }]
             };
 
             const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -133,42 +144,109 @@
                 };
             };
 
+            // [수정된 부분] 극사실주의 시뮬레이션 로직 적용
             const runSimulation = () => {
                 if (!profile) return;
+                
+                // --- [사실주의 상수 정의] ---
+                const INFLATION_RATE = 0.03;       // 물가상승률 3%
+                const INCOME_GROWTH_RATE = 0.03;   // 임금상승률 3%
+                const TAX_RATE = 0.154;            // 이자/배당소득세 15.4%
+                // -------------------------
+
                 let assets = profile.totalAssets;
                 let isBankrupt = false;
                 let bankruptAge = 100;
-                let lifestyleMult = lifestyle === 'basic' ? 0.8 : (lifestyle === 'rich' ? 1.4 : 1.0);
                 
-                Object.keys(activeRisks).forEach(id => { if(activeRisks[id]) assets -= profile.risks.find(r=>r.id===id).loss; });
+                // [밸런스 수정] 여유 모드 가중치 완화 (1.4 -> 1.2) / 절약 (0.8 -> 0.85)
+                // 기존 1.4배는 물가상승 복리와 만나면 파산 속도가 너무 빨랐음
+                let lifestyleMult = lifestyle === 'basic' ? 0.85 : (lifestyle === 'rich' ? 1.2 : 1.0);
+                
+                // [수정] 조기 퇴직(50대) 리스크 확인: 활성화 시 실제 은퇴 나이를 현재 나이로 앞당김
+                const isEarlyRetired = activeRisks['job'];
+                const effectiveRetirementAge = isEarlyRetired ? profile.age : profile.retirementAge;
 
+                // [로직 수정] 초기 리스크 차감 (기간이 없는 일시불 항목만 즉시 차감)
+                Object.keys(activeRisks).forEach(id => { 
+                    if(activeRisks[id]) {
+                        const risk = profile.risks.find(r=>r.id===id);
+                        if (!risk.period) { // period가 없으면 일시불 손실 (예: 사업 실패, 사기)
+                            assets -= risk.loss; 
+                        }
+                    }
+                });
+
+                // 연령별 시뮬레이션
                 for (let age = profile.age; age <= 100; age++) {
-                    let income = (age <= profile.retirementAge) ? profile.monthlyIncome * 12 : Math.min(profile.monthlyIncome * 0.4, 200) * 12;
+                    const yearIndex = age - profile.age;
                     
-                    // 저축 효율 30% 너프 (월 200저축 -> 실질 60효과)
-                    let effectiveSavings = Math.floor(savings * 0.30); 
-                    let monthlyExp = (profile.baseMonthlyExpense * lifestyleMult) - effectiveSavings;
+                    // 1. 소득 계산 (조기 퇴직 반영)
+                    let yearlyIncome = 0;
+                    if (age <= effectiveRetirementAge) {
+                        // 은퇴 전: 임금 상승률 적용된 연봉
+                        yearlyIncome = (profile.monthlyIncome * 12) * Math.pow(1 + INCOME_GROWTH_RATE, yearIndex);
+                    } else {
+                        // 은퇴 후: 국민연금/은퇴 생활비 (현 소득의 40% 가정하되 물가 연동 상승)
+                        // 조기 퇴직 시 소득 절벽 발생 (즉시 연금/저축 의존 모드로 전환)
+                        const basePension = Math.min(profile.monthlyIncome * 0.4, 200);
+                        yearlyIncome = (basePension * 12) * Math.pow(1 + INFLATION_RATE, yearIndex);
+                    }
+
+                    // 2. 지출 계산 (물가상승률 복리 적용)
+                    let currentBaseExpense = (profile.baseMonthlyExpense * lifestyleMult);
+                    let currentAdditionalSavings = savings * Math.pow(1 + INFLATION_RATE, yearIndex); 
                     
-                    let minLiving = 60 + (age - 30) * 1.0; 
-                    if(age > profile.retirementAge) minLiving = 60 + (profile.retirementAge - 30) * 1.0 + (age - profile.retirementAge) * 0.5;
-                    if(monthlyExp < minLiving) monthlyExp = minLiving;
+                    // 순수 지출액 = (기본생활비 - 추가저축액)
+                    let realMonthlyExpense = currentBaseExpense - currentAdditionalSavings;
                     
-                    let annualExp = monthlyExp * 12 * Math.pow(1.03, age - profile.age);
-                    let gain = (assets > 0) ? assets * (profile.investmentReturn / 100) : assets * 0.06;
-                    let net = income - annualExp + gain;
-                    assets += net;
+                    // [수정 핵심] 최소 생계비에도 라이프스타일 계수 반영
+                    // 여유(1.2배) / 보통(1.0배) / 절약(0.85배)에 따라 숨만 쉬어도 나가는 하한선 차등 적용
+                    let minLivingBase = (60 * lifestyleMult) + (age - 30) * 0.5; 
+                    let minLivingInflated = minLivingBase * Math.pow(1 + INFLATION_RATE, yearIndex);
+                    
+                    // 지출이 최소 생계비 밑으로 내려가지 않도록 보정
+                    if (realMonthlyExpense < minLivingInflated) realMonthlyExpense = minLivingInflated;
+
+                    let annualExp = realMonthlyExpense * 12 * Math.pow(1 + INFLATION_RATE, yearIndex);
+                    
+                    // [추가] 기간제 리스크 비용 추가 (결혼, 차량, 대출 등)
+                    Object.keys(activeRisks).forEach(id => {
+                        if(activeRisks[id]) {
+                            const risk = profile.risks.find(r=>r.id===id);
+                            // 리스크에 기간(period)이 있고, 아직 납부 기간 내라면
+                            if (risk.period && age < profile.age + risk.period) {
+                                // 연간 비용 = 총비용 / 기간 (물가상승 반영)
+                                const annualRiskCost = (risk.loss / risk.period) * Math.pow(1 + INFLATION_RATE, yearIndex);
+                                annualExp += annualRiskCost;
+                            }
+                        }
+                    });
+
+                    // 3. 투자 수익 계산 (세금 15.4% 차감)
+                    // 은퇴 후에는 안정적 운용으로 수익률 하락 가정
+                    let rawReturnRate = (age <= effectiveRetirementAge) ? profile.investmentReturn : (profile.investmentReturn * 0.7);
+                    let netReturnRate = (rawReturnRate / 100) * (1 - TAX_RATE); // 세후 수익률
+                    
+                    let investmentGain = (assets > 0) ? assets * netReturnRate : 0;
+                    
+                    // 4. 자산 변동
+                    let netFlow = yearlyIncome - annualExp + investmentGain;
+                    assets += netFlow;
 
                     if (assets < 0) {
-                        if (age > profile.retirementAge || net < 0) { isBankrupt = true; bankruptAge = age; break; }
+                        // 자산이 마이너스가 되면 파산으로 간주 (단, 빚으로 버티는 구간 없이 바로 파산 처리)
+                         isBankrupt = true; 
+                         bankruptAge = age; 
+                         break;
                     }
                 }
 
                 const currentExp = (profile.baseMonthlyExpense * lifestyleMult) - savings;
                 const safeExp = currentExp > 0 ? currentExp : 1;
                 const savingRate = Math.round(((profile.monthlyIncome - currentExp) / profile.monthlyIncome) * 100);
-                const liquid = Math.max(0, assets * 0.2);
+                const liquid = Math.max(0, assets * 0.2); // 최종 자산이 아닌 현재 유동성 추정치로 변경 필요하나, UI 호환 위해 유지
                 
-                setSimulationResult({ isBankrupt, bankruptAge, savingRate: Math.max(0, savingRate), dsr: 0, emergency: (liquid / safeExp).toFixed(1) });
+                setSimulationResult({ isBankrupt, bankruptAge, savingRate: Math.max(0, savingRate), dsr: 0, emergency: (profile.totalAssets * 0.2 / safeExp).toFixed(1) });
             };
 
             React.useEffect(() => { if (profile) runSimulation(); }, [profile, lifestyle, activeRisks, savings]);
@@ -176,9 +254,9 @@
             const goInput = () => setScreen('input');
             const startAnalysis = () => {
                 setScreen('loading'); setLoadingStep(0);
-                setTimeout(()=>setLoadingStep(1), 800); setTimeout(()=>setLoadingStep(2), 1600);
-                setTimeout(()=>setLoadingStep(3), 2400); setTimeout(()=>{ setLoadingStep(4); setProfile(createProfileFromInput()); }, 3200);
-                setTimeout(()=>setScreen('result'), 4000);
+                setTimeout(()=>setLoadingStep(1), 500); setTimeout(()=>setLoadingStep(2), 1000);
+                setTimeout(()=>setLoadingStep(3), 1500); setTimeout(()=>{ setLoadingStep(4); setProfile(createProfileFromInput()); }, 2000);
+                setTimeout(()=>setScreen('result'), 2500);
             };
 
             const toggleRisk = (id) => setActiveRisks(p => ({...p, [id]: !p[id]}));
@@ -232,13 +310,14 @@
             };
 
             return (
-                <div className="w-full h-full min-h-screen flex flex-col max-w-[420px] mx-auto bg-white shadow-xl overflow-hidden">
+                // [수정] 모바일 핏 컨테이너 스타일 적용 (PC에서 중앙 정렬 및 둥근 모서리)
+                <div className="w-full max-w-[420px] bg-white shadow-2xl overflow-hidden flex flex-col h-full sm:h-[85vh] sm:max-h-[900px] sm:rounded-[32px] sm:border-[8px] sm:border-white relative transition-all">
                     {/* INTRO */}
                     {screen === 'intro' && (
                         <div className="flex-1 flex flex-col justify-center text-center p-8 animate-fade-in">
                             <div className="text-6xl mb-6 animate-bounce">🪙</div>
                             <h1 className="text-2xl font-bold mb-4">당신의 돈은<br/>언제 죽을까요?</h1>
-                            <p className="text-gray-400 mb-10 text-sm">현재 소득과 지출을 입력하면<br/>금융 수명을 분석해 드립니다.</p>
+                            <p className="text-gray-400 mb-10 text-sm">현재 소득과 지출을 입력하면<br/>금융 수명을 분석해 드립니다.<br/>(물가상승/세금 현실화 버전)</p>
                             <button onClick={goInput} className="w-full py-4 rounded-xl bg-[#3182F6] text-white font-bold active:scale-95 transition shadow-lg">내 데이터 입력하기</button>
                         </div>
                     )}
@@ -271,10 +350,10 @@
                             <div className="text-lg font-bold mb-2">데이터 분석 중...</div>
                             <div className="text-sm text-gray-400 mb-10">입력하신 정보를 바탕으로 계산합니다</div>
                             <div className="w-full space-y-4">
-                                <div className={`flex items-center gap-3 ${loadingStep>=1?'text-gray-800':'text-gray-300'}`}><Icon d={Icons.Bank} /> <span>자산 흐름 파악</span></div>
-                                <div className={`flex items-center gap-3 ${loadingStep>=2?'text-gray-800':'text-gray-300'}`}><Icon d={Icons.Card} /> <span>소비 성향 분석</span></div>
+                                <div className={`flex items-center gap-3 ${loadingStep>=1?'text-gray-800':'text-gray-300'}`}><Icon d={Icons.Bank} /> <span>물가상승률 반영 중</span></div>
+                                <div className={`flex items-center gap-3 ${loadingStep>=2?'text-gray-800':'text-gray-300'}`}><Icon d={Icons.Card} /> <span>이자소득세 차감 중</span></div>
                                 <div className={`flex items-center gap-3 ${loadingStep>=3?'text-gray-800':'text-gray-300'}`}><Icon d={Icons.Activity} /> <span>생애 주기 리스크 적용</span></div>
-                                <div className={`flex items-center gap-3 ${loadingStep>=4?'text-gray-800':'text-gray-300'}`}><Icon d={Icons.Graph} /> <span>금융 수명 시뮬레이션</span></div>
+                                <div className={`flex items-center gap-3 ${loadingStep>=4?'text-gray-800':'text-gray-300'}`}><Icon d={Icons.Graph} /> <span>실질 구매력 시뮬레이션</span></div>
                             </div>
                         </div>
                     )}
@@ -300,7 +379,7 @@
                                     <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                                         <div className={`h-full transition-all duration-700 ${getStatus(simulationResult.bankruptAge).bar}`} style={{width:`${Math.min(100, simulationResult.bankruptAge)}%`}}></div>
                                     </div>
-                                    <p className="text-center text-[10px] text-gray-400 mt-2">▲ 기대수명 100세 기준</p>
+                                    <p className="text-center text-[10px] text-gray-400 mt-2">▲ 인플레이션 3%, 세금 15.4% 반영</p>
                                 </div>
                             </div>
 
@@ -340,7 +419,7 @@
                                                 disabled={isSubscribed}
                                                 className={`w-full py-3 rounded-xl text-sm font-bold transition ${isSubscribed ? 'bg-gray-400 text-white cursor-default' : 'bg-[#3182F6] text-white active:scale-95 shadow-md'}`}
                                             >
-                                                {isSubscribed ? '구독 중' : '월 990원에 구독하기'}
+                                                {isSubscribed ? '구독 중' : '구독하기'}
                                             </button>
                                         </div>
                                     </div>
@@ -356,7 +435,7 @@
 
         const LoadingItem = ({ step, current, icon, text }) => {
             const isDone = current > step; const isActive = current === step;
-            return (<div className={`flex items-center gap-3 text-[14px] transition-all duration-300 ${isDone || isActive ? 'text-[#191F28] font-semibold' : 'text-[#aaa]'}`}><div className={`w-6 flex justify-center text-center transition-all duration-300`}>{isDone ? <div className="text-[#3182F6]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div> : <div className="opacity-50">{icon}</div>}</div><span>{text}</span></div>);
+            return (<div className={`flex items-center gap-3 text-[14px] transition-all duration-300 ${isDone || isActive ? 'text-[#191F28] font-semibold' : 'text-[#aaa]'}`}><div className={`w-6 flex justify-center text-center transition-all duration-300`}>{isDone ? <div className="text-[#3182F6]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div> : <div className="opacity-50">{icon}</div>}</div><span>{text}</span></div>);
         };
         const TabButton = ({ children, active, onClick }) => (<button onClick={onClick} className={`px-3 py-2 rounded-[20px] text-[13px] font-semibold border transition-all ${active ? 'bg-[#191F28] text-white border-[#191F28]' : 'bg-white text-[#888] border-[#eee] hover:bg-gray-50'}`}>{children}</button>);
         const DiagItem = ({ label, value, status, color }) => (<div className="bg-[#F9FAFB] p-[10px] rounded-[10px] text-center"><div className="text-[11px] text-[#888] mb-1">{label}</div><div className="text-[14px] font-bold text-[#191F28]">{value}</div><div className="text-[10px] mt-[2px]" style={{ color: color }}>{status}</div></div>);
