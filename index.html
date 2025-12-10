@@ -94,12 +94,11 @@
                 pro: { title: '전문직', retirementAge: 68, investMin: 2.5, investMax: 5.5 }
             };
 
-            // [수정] 20대(기간제 변경) 및 50대 리스크 정의 수정
             const riskScenarios = {
                 // 20대: 결혼/차량을 일시불이 아닌 '할부/준비기간' 개념(period)으로 변경하여 즉시 파산 방지
                 20: [
-                    { id: 'marriage', title: '💍 결혼/독립 준비', loss: 8000, prob: '70%', period: 3 }, // 5년 상환/저축
-                    { id: 'car', title: '🚗 차량 할부 구매', loss: 3000, prob: '60%', period: 2 }     // 3년 할부
+                    { id: 'marriage', title: '💍 결혼/독립 준비', loss: 8000, prob: '70%', period: 3 }, // 3년 상환/저축
+                    { id: 'car', title: '🚗 차량 할부 구매', loss: 3000, prob: '60%', period: 2 }     // 2년 할부
                 ],
                 30: [{ id: 'housing', title: '🏠 주택 대출 이자', loss: 30000, prob: '50%', period: 20 }, { id: 'child', title: '👶 육아 비용', loss: 4000, prob: '40%', period: 5 }],
                 40: [{ id: 'education', title: '🎓 자녀 교육비', loss: 12000, prob: '80%', period: 8 }, { id: 'medical', title: '🏥 가족 의료비', loss: 5000, prob: '24%', period: 4}],
