@@ -98,14 +98,14 @@
             const riskScenarios = {
                 // 20대: 결혼/차량을 일시불이 아닌 '할부/준비기간' 개념(period)으로 변경하여 즉시 파산 방지
                 20: [
-                    { id: 'marriage', title: '💍 결혼/독립 준비', loss: 8000, prob: '70%', period: 5 }, // 5년 상환/저축
-                    { id: 'car', title: '🚗 차량 할부 구매', loss: 3000, prob: '60%', period: 3 }     // 3년 할부
+                    { id: 'marriage', title: '💍 결혼/독립 준비', loss: 8000, prob: '70%', period: 3 }, // 5년 상환/저축
+                    { id: 'car', title: '🚗 차량 할부 구매', loss: 3000, prob: '60%', period: 2 }     // 3년 할부
                 ],
-                30: [{ id: 'housing', title: '🏠 주택 대출 이자', loss: 10000, prob: '50%', period: 30 }, { id: 'child', title: '👶 육아 비용', loss: 4000, prob: '40%', period: 5 }],
-                40: [{ id: 'education', title: '🎓 자녀 교육비', loss: 12000, prob: '80%', period: 12 }, { id: 'medical', title: '🏥 가족 의료비', loss: 5000, prob: '24%' }],
+                30: [{ id: 'housing', title: '🏠 주택 대출 이자', loss: 30000, prob: '50%', period: 20 }, { id: 'child', title: '👶 육아 비용', loss: 4000, prob: '40%', period: 5 }],
+                40: [{ id: 'education', title: '🎓 자녀 교육비', loss: 12000, prob: '80%', period: 8 }, { id: 'medical', title: '🏥 가족 의료비', loss: 5000, prob: '24%', period: 4}],
                 // 50대: 조기 퇴직은 비용(loss)도 있지만 로직에서 '소득 중단'을 트리거함
                 50: [{ id: 'business', title: '📉 투자/사업 손실', loss: 15000, prob: '30%' }, { id: 'job', title: '💼 조기 퇴직', loss: 5000, prob: '15%' }],
-                60: [{ id: 'health', title: '🏥 노후 의료비', loss: 8000, prob: '35%', period: 20 }, { id: 'scam', title: '💸 사기/분쟁', loss: 10000, prob: '15%' }]
+                60: [{ id: 'health', title: '🏥 노후 의료비', loss: 8000, prob: '35%', period: 10 }, { id: 'scam', title: '💸 사기/분쟁', loss: 10000, prob: '15%' }]
             };
 
             const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
