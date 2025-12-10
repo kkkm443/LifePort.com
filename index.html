@@ -6,22 +6,11 @@
     <meta name="theme-color" content="#3182F6">
     <title>LifePort</title>
     
-    <!-- [중요] 아이콘 설정 완벽 적용 -->
-    <!-- 1. PWA 설정 (안드로이드 설치용) -->
+    <!-- PWA 설정 -->
     <link rel="manifest" href="./manifest.json">
-    
-    <!-- 2. 아이폰(iOS) 홈 화면 아이콘 -->
     <link rel="apple-touch-icon" sizes="180x180" href="./icon.png">
-    
-    <!-- 3. 크롬/사파리 브라우저 탭 아이콘 (파비콘) -->
     <link rel="icon" type="image/png" sizes="32x32" href="./icon.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./icon.png">
-    <link rel="shortcut icon" href="./icon.png">
-
-    <!-- iOS 상태바 스타일 -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="LifePort">
     
     <!-- React & Tailwind -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -53,16 +42,12 @@
             background-color: #fff;
         }
         .input-group input:focus, .input-group select:focus { border-color: #3182F6; ring: 2px solid #3182F6; }
-        /* 숫자 입력 화살표 제거 */
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body class="bg-[#F2F4F6]">
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- 아이콘 컴포넌트 ---
         const Icon = ({ d, size=20, color="currentColor" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
         );
@@ -75,20 +60,17 @@
             Card: "M1 4h22v16H1z M1 10h22",
             Graph: "M23 6l-9.5 9.5-5-5L1 18",
             Activity: "M22 12h-4l-3 9L9 3l-3 9H2",
-            ArrowRight: "M5 12h14 M12 5l7 7-7 7"
+            ArrowRight: "M5 12h14 M12 5l7 7-7 7",
+            Bell: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0",
+            Link: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
         };
 
         const LifePortSimulator = () => {
-            const [screen, setScreen] = React.useState('intro');
+            const [screen, setScreen] = React.useState('intro'); 
             const [loadingStep, setLoadingStep] = React.useState(0);
             
-            // 사용자 입력 데이터
             const [inputData, setInputData] = React.useState({
-                age: 30,
-                jobType: 'office', 
-                monthlyIncome: 300,
-                totalAssets: 5000,
-                monthlyExpense: 150
+                age: 30, jobType: 'office', monthlyIncome: 300, totalAssets: 5000, monthlyExpense: 150
             });
 
             const [profile, setProfile] = React.useState(null);
@@ -96,6 +78,7 @@
             const [lifestyle, setLifestyle] = React.useState('standard'); 
             const [activeRisks, setActiveRisks] = React.useState({}); 
             const [savings, setSavings] = React.useState(0); 
+            const [isSubscribed, setIsSubscribed] = React.useState(false);
 
             // 직업별 기본 세팅
             const jobTraits = {
@@ -117,68 +100,53 @@
             const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
             const formatMoney = (val) => val >= 10000 ? (val/10000).toFixed(1).replace('.0','') + '억' : val.toLocaleString() + '만원';
 
-            // [수정됨] 입력 핸들러: 빈 문자열 처리 추가
             const handleInputChange = (e) => {
                 const { name, value } = e.target;
                 if (name === 'jobType') {
                     setInputData(prev => ({ ...prev, [name]: value }));
                 } else {
-                    // 값이 비어있으면 '' 그대로 저장, 아니면 숫자로 변환
-                    // 이렇게 해야 백스페이스로 다 지웠을 때 0이 안 남음
                     setInputData(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
                 }
             };
 
-            // 프로필 생성
+            // 마이데이터 연동 (가상 기능)
+            const handleMyDataConnect = () => {
+                alert("🔒 마이데이터 보안 모듈 로딩 중...\n\n(현재는 데모 버전입니다. 추후 실제 은행/카드사 API와 연동되어 자산을 자동으로 불러옵니다.)");
+            };
+
             const createProfileFromInput = () => {
                 const trait = jobTraits[inputData.jobType];
-                
-                // [안전 장치] 입력값이 비어있을 경우 0으로 처리하여 계산 오류 방지
                 const safeInput = {
                     age: Number(inputData.age) || 30,
                     monthlyIncome: Number(inputData.monthlyIncome) || 0,
                     monthlyExpense: Number(inputData.monthlyExpense) || 0,
                     totalAssets: Number(inputData.totalAssets) || 0
                 };
-
                 const ageKey = Math.floor(safeInput.age/10)*10;
                 const safeAgeKey = (ageKey > 60) ? 60 : (ageKey < 20 ? 20 : ageKey);
 
                 return {
-                    age: safeInput.age,
-                    job: trait.title,
-                    monthlyIncome: safeInput.monthlyIncome,
-                    baseMonthlyExpense: safeInput.monthlyExpense,
-                    totalAssets: safeInput.totalAssets,
-                    totalDebt: 0, 
+                    age: safeInput.age, job: trait.title, monthlyIncome: safeInput.monthlyIncome, baseMonthlyExpense: safeInput.monthlyExpense,
+                    totalAssets: safeInput.totalAssets, totalDebt: 0, 
                     risks: riskScenarios[safeAgeKey] || riskScenarios[40],
-                    retirementAge: trait.retirementAge,
-                    investmentReturn: rand(trait.investMin * 10, trait.investMax * 10) / 10 
+                    retirementAge: trait.retirementAge, investmentReturn: rand(trait.investMin * 10, trait.investMax * 10) / 10 
                 };
             };
 
-            // 시뮬레이션 엔진 (저축 효율 너프 유지)
             const runSimulation = () => {
                 if (!profile) return;
                 let assets = profile.totalAssets;
                 let isBankrupt = false;
                 let bankruptAge = 100;
-                
                 let lifestyleMult = lifestyle === 'basic' ? 0.8 : (lifestyle === 'rich' ? 1.4 : 1.0);
                 
                 Object.keys(activeRisks).forEach(id => { if(activeRisks[id]) assets -= profile.risks.find(r=>r.id===id).loss; });
 
                 for (let age = profile.age; age <= 100; age++) {
-                    let income = 0;
-                    if (age <= profile.retirementAge) {
-                        income = profile.monthlyIncome * 12;
-                    } else {
-                        let pension = Math.min(profile.monthlyIncome * 0.4, 200);
-                        income = pension * 12;
-                    }
-
-                    // 저축 효율 30%
-                    let effectiveSavings = Math.floor(savings * 0.30);
+                    let income = (age <= profile.retirementAge) ? profile.monthlyIncome * 12 : Math.min(profile.monthlyIncome * 0.4, 200) * 12;
+                    
+                    // 저축 효율 30% 너프 (월 200저축 -> 실질 60효과)
+                    let effectiveSavings = Math.floor(savings * 0.30); 
                     let monthlyExp = (profile.baseMonthlyExpense * lifestyleMult) - effectiveSavings;
                     
                     let minLiving = 60 + (age - 30) * 1.0; 
@@ -186,15 +154,12 @@
                     if(monthlyExp < minLiving) monthlyExp = minLiving;
                     
                     let annualExp = monthlyExp * 12 * Math.pow(1.03, age - profile.age);
-
                     let gain = (assets > 0) ? assets * (profile.investmentReturn / 100) : assets * 0.06;
                     let net = income - annualExp + gain;
                     assets += net;
 
                     if (assets < 0) {
-                        if (age > profile.retirementAge || net < 0) {
-                            isBankrupt = true; bankruptAge = age; break;
-                        }
+                        if (age > profile.retirementAge || net < 0) { isBankrupt = true; bankruptAge = age; break; }
                     }
                 }
 
@@ -203,45 +168,67 @@
                 const savingRate = Math.round(((profile.monthlyIncome - currentExp) / profile.monthlyIncome) * 100);
                 const liquid = Math.max(0, assets * 0.2);
                 
-                setSimulationResult({ 
-                    isBankrupt, bankruptAge, savingRate: Math.max(0, savingRate), 
-                    dsr: 0, 
-                    emergency: (liquid / safeExp).toFixed(1)
-                });
+                setSimulationResult({ isBankrupt, bankruptAge, savingRate: Math.max(0, savingRate), dsr: 0, emergency: (liquid / safeExp).toFixed(1) });
             };
 
             React.useEffect(() => { if (profile) runSimulation(); }, [profile, lifestyle, activeRisks, savings]);
 
             const goInput = () => setScreen('input');
-
             const startAnalysis = () => {
                 setScreen('loading'); setLoadingStep(0);
-                setTimeout(()=>setLoadingStep(1), 800); 
-                setTimeout(()=>setLoadingStep(2), 1600);
-                setTimeout(()=>setLoadingStep(3), 2400); 
-                setTimeout(()=>{
-                    setLoadingStep(4); 
-                    setProfile(createProfileFromInput()); 
-                }, 3200);
+                setTimeout(()=>setLoadingStep(1), 800); setTimeout(()=>setLoadingStep(2), 1600);
+                setTimeout(()=>setLoadingStep(3), 2400); setTimeout(()=>{ setLoadingStep(4); setProfile(createProfileFromInput()); }, 3200);
                 setTimeout(()=>setScreen('result'), 4000);
             };
 
             const toggleRisk = (id) => setActiveRisks(p => ({...p, [id]: !p[id]}));
-            
             const getStatus = (age) => {
                 if(age>=100) return {color:'text-green-600', bg:'bg-green-50', bar:'bg-green-500', msg:'안전 상태'};
                 if(age>=80) return {color:'text-blue-600', bg:'bg-blue-50', bar:'bg-blue-500', msg:'보통 상태'};
                 if(age>=70) return {color:'text-orange-600', bg:'bg-orange-50', bar:'bg-orange-500', msg:'주의 필요'};
                 return {color:'text-red-600', bg:'bg-red-50', bar:'bg-red-500', msg:'위험 경고'};
             };
+            const resetAll = () => { 
+                setScreen('intro'); setProfile(null); setSimulationResult(null); 
+                setActiveRisks({}); setSavings(0); setLifestyle('standard'); 
+                setIsSubscribed(false); 
+            };
 
-            const resetAll = () => {
-                setScreen('intro');
-                setProfile(null);
-                setSimulationResult(null);
-                setActiveRisks({});
-                setSavings(0);
-                setLifestyle('standard');
+            // [FIXED] 구독 버튼 핸들러 (강력한 상태 변경 보장)
+            const handleSubscribe = async () => {
+                // 1. 브라우저 미지원 시 (시뮬레이션 처리)
+                if (!('Notification' in window)) {
+                    setIsSubscribed(true);
+                    alert("구독 완료! (알림 미지원 환경입니다)");
+                    return;
+                }
+
+                // 2. 이미 권한이 있는 경우
+                if (Notification.permission === 'granted') {
+                    setIsSubscribed(true);
+                    alert("✅ 이미 구독 중입니다. 매주 월요일 리포트가 발송됩니다.");
+                    return;
+                }
+
+                // 3. 권한이 거부된 경우 (안내만)
+                if (Notification.permission === 'denied') {
+                    alert("🚫 알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림을 허용해주세요.");
+                    return;
+                }
+
+                // 4. 권한 요청
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        setIsSubscribed(true);
+                        alert("✅ 구독 완료! 매주 월요일 리포트를 보내드립니다.");
+                    } else {
+                        alert("알림 권한을 허용해야 리포트를 받을 수 있습니다.");
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("오류가 발생했습니다.");
+                }
             };
 
             return (
@@ -256,50 +243,24 @@
                         </div>
                     )}
 
-                    {/* INPUT FORM (개선됨) */}
+                    {/* INPUT FORM */}
                     {screen === 'input' && (
                         <div className="flex-1 flex flex-col p-6 animate-fade-in bg-white overflow-y-auto">
-                            <div className="flex items-center gap-2 mb-8">
+                            <div className="flex items-center gap-2 mb-6">
                                 <button onClick={()=>setScreen('intro')} className="text-gray-400 hover:text-gray-800"><Icon d="M19 12H5M12 19l-7-7 7-7" /></button>
                                 <h2 className="text-xl font-bold">기본 정보 입력</h2>
                             </div>
-                            
-                            <div className="space-y-6">
-                                <div className="input-group">
-                                    <label>나이 (세)</label>
-                                    <input type="number" name="age" value={inputData.age} onChange={handleInputChange} />
-                                </div>
-                                
-                                <div className="input-group">
-                                    <label>직업군</label>
-                                    <select name="jobType" value={inputData.jobType} onChange={handleInputChange}>
-                                        <option value="office">직장인 (대기업/중견)</option>
-                                        <option value="civil">공무원 / 공기업</option>
-                                        <option value="free">프리랜서</option>
-                                        <option value="startup">사업가 / 자영업</option>
-                                        <option value="pro">전문직 (의사/약사/변호사)</option>
-                                    </select>
-                                </div>
-
-                                <div className="input-group">
-                                    <label>월 평균 세후 소득 (만원)</label>
-                                    <input type="number" name="monthlyIncome" value={inputData.monthlyIncome} onChange={handleInputChange} />
-                                </div>
-
-                                <div className="input-group">
-                                    <label>현재 순자산 (부채 제외, 만원)</label>
-                                    <input type="number" name="totalAssets" value={inputData.totalAssets} onChange={handleInputChange} placeholder="예: 5000" />
-                                </div>
-
-                                <div className="input-group">
-                                    <label>월 평균 지출 (숨만 쉬어도 나가는 돈 포함)</label>
-                                    <input type="number" name="monthlyExpense" value={inputData.monthlyExpense} onChange={handleInputChange} />
-                                </div>
-                            </div>
-
-                            <button onClick={startAnalysis} className="mt-10 w-full py-4 rounded-xl bg-[#3182F6] text-white font-bold active:scale-95 transition shadow-lg flex items-center justify-center gap-2">
-                                <span>분석 시작하기</span> <Icon d={Icons.ArrowRight} size={18} />
+                            <button onClick={handleMyDataConnect} className="w-full py-3 mb-8 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-100 transition">
+                                <Icon d={Icons.Link} size={16} /> <span>내 자산 자동으로 불러오기</span>
                             </button>
+                            <div className="space-y-6">
+                                <div className="input-group"><label>나이 (세)</label><input type="number" name="age" value={inputData.age} onChange={handleInputChange} /></div>
+                                <div className="input-group"><label>직업군</label><select name="jobType" value={inputData.jobType} onChange={handleInputChange}><option value="office">직장인</option><option value="civil">공무원/공기업</option><option value="free">프리랜서</option><option value="startup">사업가/자영업</option><option value="pro">전문직</option></select></div>
+                                <div className="input-group"><label>월 평균 세후 소득 (만원)</label><input type="number" name="monthlyIncome" value={inputData.monthlyIncome} onChange={handleInputChange} /></div>
+                                <div className="input-group"><label>현재 순자산 (부채 제외, 만원)</label><input type="number" name="totalAssets" value={inputData.totalAssets} onChange={handleInputChange} placeholder="예: 5000" /></div>
+                                <div className="input-group"><label>월 평균 지출 (숨만 쉬어도 나가는 돈 포함)</label><input type="number" name="monthlyExpense" value={inputData.monthlyExpense} onChange={handleInputChange} /></div>
+                            </div>
+                            <button onClick={startAnalysis} className="mt-10 w-full py-4 rounded-xl bg-[#3182F6] text-white font-bold active:scale-95 transition shadow-lg flex items-center justify-center gap-2"><span>분석 시작하기</span> <Icon d={Icons.ArrowRight} size={18} /></button>
                         </div>
                     )}
 
@@ -323,36 +284,19 @@
                         <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 animate-fade-in">
                             <div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-6 border-b border-gray-100">
                                 <div className="flex justify-center mb-4">
-                                    <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1">
-                                        <Icon d={Icons.User} size={14}/> {profile.age}세 · {profile.job}
-                                    </span>
+                                    <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1"><Icon d={Icons.User} size={14}/> {profile.age}세 · {profile.job}</span>
                                 </div>
                                 <div className="text-center mb-6">
-                                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 ${getStatus(simulationResult.bankruptAge).bg} ${getStatus(simulationResult.bankruptAge).color}`}>
-                                        {getStatus(simulationResult.bankruptAge).msg}
-                                    </span>
-                                    <div className="text-3xl font-extrabold leading-tight">
-                                        당신의 돈은<br/>
-                                        <span className={getStatus(simulationResult.bankruptAge).color}>
-                                            {simulationResult.isBankrupt ? `${simulationResult.bankruptAge}세` : '100세+'}
-                                        </span>에 사망합니다.
-                                    </div>
+                                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 ${getStatus(simulationResult.bankruptAge).bg} ${getStatus(simulationResult.bankruptAge).color}`}>{getStatus(simulationResult.bankruptAge).msg}</span>
+                                    <div className="text-3xl font-extrabold leading-tight">당신의 돈은<br/><span className={getStatus(simulationResult.bankruptAge).color}>{simulationResult.isBankrupt ? `${simulationResult.bankruptAge}세` : '100세+'}</span>에 사망합니다.</div>
                                 </div>
-                                
                                 <div className="flex justify-center gap-2 mb-6">
                                     {['basic','standard','rich'].map(l => (
-                                        <button key={l} onClick={()=>setLifestyle(l)} 
-                                            className={`px-4 py-2 rounded-full text-xs font-bold border transition ${lifestyle===l?'bg-[#191F28] text-white border-[#191F28]':'bg-white text-gray-500 hover:bg-gray-50'}`}>
-                                            {l==='basic'?'절약':l==='standard'?'보통':'여유'}
-                                        </button>
+                                        <button key={l} onClick={()=>setLifestyle(l)} className={`px-4 py-2 rounded-full text-xs font-bold border transition ${lifestyle===l?'bg-[#191F28] text-white border-[#191F28]':'bg-white text-gray-500 hover:bg-gray-50'}`}>{l==='basic'?'절약':l==='standard'?'보통':'여유'}</button>
                                     ))}
                                 </div>
-
                                 <div className="mb-2">
-                                    <div className="flex justify-between text-xs font-bold text-gray-500 mb-2">
-                                        <span>💸 자산 수명</span>
-                                        <span>{simulationResult.bankruptAge}세</span>
-                                    </div>
+                                    <div className="flex justify-between text-xs font-bold text-gray-500 mb-2"><span>💸 자산 수명</span><span>{simulationResult.bankruptAge}세</span></div>
                                     <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                                         <div className={`h-full transition-all duration-700 ${getStatus(simulationResult.bankruptAge).bar}`} style={{width:`${Math.min(100, simulationResult.bankruptAge)}%`}}></div>
                                     </div>
@@ -361,14 +305,9 @@
                             </div>
 
                             <div className="p-6">
-                                <div className="flex items-center gap-2 text-lg font-bold mb-4">
-                                    <Icon d={Icons.Alert} color="#FF8D4D" /> <span>{Math.floor(profile.age/10)*10}대 라이프 리스크</span>
-                                </div>
+                                <div className="flex items-center gap-2 text-lg font-bold mb-4"><Icon d={Icons.Alert} color="#FF8D4D" /> <span>{Math.floor(profile.age/10)*10}대 라이프 리스크</span></div>
                                 {profile.risks.map(r => (
-                                    <div key={r.id} 
-                                         onClick={() => toggleRisk(r.id)} 
-                                         className="bg-white border border-gray-100 p-4 rounded-2xl mb-3 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors relative"
-                                    >
+                                    <div key={r.id} onClick={() => toggleRisk(r.id)} className="bg-white border border-gray-100 p-4 rounded-2xl mb-3 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors relative">
                                         <div className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded inline-block mb-2">⚠️ 위험도 {r.prob}</div>
                                         <div className="flex justify-between items-center mb-1">
                                             <span className="font-bold text-gray-800">{r.title}</span>
@@ -376,32 +315,38 @@
                                                 <div className={`absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform ${activeRisks[r.id] ? 'translate-x-full border-white' : ''}`}></div>
                                             </div>
                                         </div>
-                                        <div className="flex justify-between text-xs text-gray-500">
-                                            <span>예상 손실액</span>
-                                            <span className="text-[#E94658] font-bold">-{formatMoney(r.loss)}</span>
-                                        </div>
+                                        <div className="flex justify-between text-xs text-gray-500"><span>예상 손실액</span><span className="text-[#E94658] font-bold">-{formatMoney(r.loss)}</span></div>
                                     </div>
                                 ))}
                             </div>
 
                             <div className="p-6 bg-gray-50 border-t border-gray-100">
-                                <div className="flex items-center gap-2 text-lg font-bold mb-4 text-gray-800">
-                                    <Icon d={Icons.Shield} color="#3182F6" /> <span>솔루션 시뮬레이터</span>
-                                </div>
+                                <div className="flex items-center gap-2 text-lg font-bold mb-4 text-gray-800"><Icon d={Icons.Shield} color="#3182F6" /> <span>솔루션 시뮬레이터</span></div>
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm mb-6">
                                     <div className="text-sm font-bold text-[#3182F6] mb-4">☕️ 월 저축을 늘린다면?</div>
-                                    <input type="range" min="0" max="200" step="10" value={savings} onChange={(e)=>setSavings(Number(e.target.value))} 
-                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                        style={{background: `linear-gradient(to right, #3182F6 ${(savings/200)*100}%, #e5e7eb ${(savings/200)*100}%)`}}
-                                    />
-                                    <div className="flex justify-between items-center mt-4">
-                                        <span className="text-xs text-gray-500">추가 저축액</span>
-                                        <span className="text-lg font-bold text-[#3182F6]">{savings}만원</span>
+                                    <input type="range" min="0" max="200" step="10" value={savings} onChange={(e)=>setSavings(Number(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" style={{background: `linear-gradient(to right, #3182F6 ${(savings/200)*100}%, #e5e7eb ${(savings/200)*100}%)`}}/>
+                                    <div className="flex justify-between items-center mt-4"><span className="text-xs text-gray-500">추가 저축액</span><span className="text-lg font-bold text-[#3182F6]">{savings}만원</span></div>
+                                </div>
+                                
+                                {/* 구독 버튼 섹션 */}
+                                <div className="bg-[#E8F3FF] p-5 rounded-2xl mb-6">
+                                    <div className="flex items-start gap-3">
+                                        <div className="bg-white p-2 rounded-full text-[#3182F6]"><Icon d={Icons.Bell} /></div>
+                                        <div>
+                                            <h3 className="font-bold text-[#3182F6] text-sm mb-1">매주 리포트 받기</h3>
+                                            <p className="text-xs text-gray-600 mb-3">변동되는 자산 수명을<br/>매주 알림으로 체크하세요.</p>
+                                            <button 
+                                                onClick={handleSubscribe} 
+                                                disabled={isSubscribed}
+                                                className={`w-full py-3 rounded-xl text-sm font-bold transition ${isSubscribed ? 'bg-gray-400 text-white cursor-default' : 'bg-[#3182F6] text-white active:scale-95 shadow-md'}`}
+                                            >
+                                                {isSubscribed ? '구독 중' : '월 990원에 구독하기'}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                                <button onClick={resetAll} className="w-full py-4 bg-[#3182F6] text-white rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg active:scale-95 transition">
-                                    <Icon d={Icons.Refresh} /> <span>다시 입력하기</span>
-                                </button>
+
+                                <button onClick={resetAll} className="w-full py-4 bg-white text-gray-600 border border-gray-200 rounded-xl font-bold flex justify-center items-center gap-2 shadow-sm active:scale-95 transition hover:bg-gray-50"><Icon d={Icons.Refresh} /> <span>다시 입력하기</span></button>
                             </div>
                         </div>
                     )}
@@ -410,41 +355,16 @@
         };
 
         const LoadingItem = ({ step, current, icon, text }) => {
-            const isDone = current > step;
-            const isActive = current === step;
-            return (
-                <div className={`flex items-center gap-3 text-[14px] transition-all duration-300 ${isDone || isActive ? 'text-[#191F28] font-semibold' : 'text-[#aaa]'}`}>
-                    <div className={`w-6 flex justify-center text-center transition-all duration-300`}>
-                        {isDone ? <div className="text-[#3182F6]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div> : <div className="opacity-50">{icon}</div>}
-                    </div>
-                    <span>{text}</span>
-                </div>
-            );
+            const isDone = current > step; const isActive = current === step;
+            return (<div className={`flex items-center gap-3 text-[14px] transition-all duration-300 ${isDone || isActive ? 'text-[#191F28] font-semibold' : 'text-[#aaa]'}`}><div className={`w-6 flex justify-center text-center transition-all duration-300`}>{isDone ? <div className="text-[#3182F6]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div> : <div className="opacity-50">{icon}</div>}</div><span>{text}</span></div>);
         };
-
-        const TabButton = ({ children, active, onClick }) => (
-            <button onClick={onClick} className={`px-3 py-2 rounded-[20px] text-[13px] font-semibold border transition-all ${active ? 'bg-[#191F28] text-white border-[#191F28]' : 'bg-white text-[#888] border-[#eee] hover:bg-gray-50'}`}>
-                {children}
-            </button>
-        );
-
-        const DiagItem = ({ label, value, status, color }) => (
-            <div className="bg-[#F9FAFB] p-[10px] rounded-[10px] text-center">
-                <div className="text-[11px] text-[#888] mb-1">{label}</div>
-                <div className="text-[14px] font-bold text-[#191F28]">{value}</div>
-                <div className="text-[10px] mt-[2px]" style={{ color: color }}>{status}</div>
-            </div>
-        );
+        const TabButton = ({ children, active, onClick }) => (<button onClick={onClick} className={`px-3 py-2 rounded-[20px] text-[13px] font-semibold border transition-all ${active ? 'bg-[#191F28] text-white border-[#191F28]' : 'bg-white text-[#888] border-[#eee] hover:bg-gray-50'}`}>{children}</button>);
+        const DiagItem = ({ label, value, status, color }) => (<div className="bg-[#F9FAFB] p-[10px] rounded-[10px] text-center"><div className="text-[11px] text-[#888] mb-1">{label}</div><div className="text-[14px] font-bold text-[#191F28]">{value}</div><div className="text-[10px] mt-[2px]" style={{ color: color }}>{status}</div></div>);
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<LifePortSimulator />);
         
-        // PWA Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW registered', reg)).catch(err => console.log('SW failed', err));
-            });
-        }
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW registered')).catch(err => console.log('SW failed')); }); }
     </script>
 </body>
 </html>
