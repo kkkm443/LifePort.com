@@ -77,6 +77,26 @@
             display: flex; flex-direction: column; align-items: center; padding-top: 40px; pointer-events: none;
         }
         .lock-overlay-content { pointer-events: auto; }
+        
+        /* 키패드 그리드 */
+        .keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+        .keypad-btn { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 500; cursor: pointer; }
+        .keypad-btn:active { background-color: #f2f4f6; }
+		.bar-label {
+		/* 1. 텍스트가 막대 너비보다 길어도 한 줄로 나오게 강제함 */
+		white-space: nowrap;
+
+		/* 2. 텍스트 너비를 내용물(글자) 길이에 맞춤 (막대 너비 무시) */
+		width: max-content;
+
+		/* 3. 막대 중앙에 위치 보정 (absolute 포지션일 경우 필수) */
+		position: absolute; /* 이미 있다면 유지 */
+		left: 50%;
+		transform: translateX(-50%);
+  
+		/* (선택) 만약 위쪽으로 짤린다면 top 값을 조금 더 내려주거나 차트 컨테이너의 padding-top을 늘려야 함 */
+		/* top: -25px; */ 
+		}
     </style>
 </head>
 <body class="bg-[#F2F4F6]">
@@ -84,7 +104,7 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
-        const { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, CartesianGrid, XAxis, YAxis } = window.Recharts || {};
+        const { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, CartesianGrid, XAxis, YAxis, BarChart, Bar } = window.Recharts || {};
 
         if (!window.Recharts) {
             console.error("Recharts 라이브러리가 로드되지 않았습니다.");
@@ -119,7 +139,8 @@
             Home: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
             Menu: "M3 12h18M3 6h18M3 18h18",
             Wallet: "M20 7h-3a2 2 0 0 1-2-2V3 M9 9h6 M9 13h6 M1 21h22V7H1v14z",
-            Gift: "M20 12v10H4V12 M2 7h20v5H2z M12 22V7 M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"
+            Gift: "M20 12v10H4V12 M2 7h20v5H2z M12 22V7 M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z",
+            Star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
         };
 
         const Icon = ({ d, size=20, color="currentColor", className="" }) => (
@@ -145,6 +166,7 @@
         const RefreshCw = (props) => <Icon d={Icons.Refresh} {...props} />;
         const Shield = (props) => <Icon d={Icons.Shield} {...props} />;
         const LogOut = (props) => <Icon d={Icons.Lock} {...props} />;
+        const Star = (props) => <Icon d={Icons.Star} {...props} />;
 
         const PRODUCT_DATA = {
             'deposit': {
@@ -226,7 +248,7 @@
         const formatMoney = (val) => val >= 10000 ? (val/10000).toFixed(1).replace('.0','') + '억' : val.toLocaleString() + '만원';
 
         // ==========================================
-        // 2. 새로운 컴포넌트 (Intro, Input, Home 등)
+        // 2. 새로운 컴포넌트
         // ==========================================
 
         function IntroScreen({ onStart }) {
@@ -250,6 +272,315 @@
             </div>
           );
         }
+
+        // [결제 화면] 실제 결제창과 유사하게 구현
+        function PaymentScreen({ onBack, onComplete }) {
+            const [step, setStep] = useState(0); // 0: select, 1: password, 2: processing
+            const [password, setPassword] = useState('');
+
+            const handleKeypad = (num) => {
+                if (password.length < 6) {
+                    const nextPw = password + num;
+                    setPassword(nextPw);
+                    if (nextPw.length === 6) {
+                        setStep(2);
+                        setTimeout(onComplete, 2000);
+                    }
+                }
+            };
+
+            const handleDelete = () => setPassword(password.slice(0, -1));
+
+            return (
+                <div className="absolute inset-0 bg-white z-50 flex flex-col animate-fade-in">
+                    {/* Header */}
+                    <div className="flex items-center p-4">
+                        <button onClick={onBack} className="text-gray-800">
+                            <X size={24} />
+                        </button>
+                    </div>
+
+                    {step === 0 && (
+                        <div className="p-6 flex-1 flex flex-col">
+                            <h2 className="text-2xl font-bold mb-8">결제 수단을 선택해주세요</h2>
+                            
+                            <div className="space-y-4 mb-8">
+                                <div className="flex items-center justify-between p-4 border border-[#3182F6] bg-blue-50 rounded-2xl cursor-pointer ring-2 ring-blue-500">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-6 bg-gray-800 rounded flex items-center justify-center text-[8px] text-white">CARD</div>
+                                        <div>
+                                            <div className="text-sm font-bold">현대카드</div>
+                                            <div className="text-xs text-gray-500">5322-****-****-0123</div>
+                                        </div>
+                                    </div>
+                                    <Check size={20} className="text-[#3182F6]" />
+                                </div>
+                                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-6 bg-yellow-400 rounded flex items-center justify-center text-[8px] text-black">PAY</div>
+                                        <div>
+                                            <div className="text-sm font-bold">카카오페이</div>
+                                            <div className="text-xs text-gray-500">잔액 1,240,000원</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-auto">
+                                <div className="flex justify-between items-center mb-4 text-sm text-gray-500">
+                                    <span>결제 금액 (월 구독)</span>
+                                    <span className="text-lg font-bold text-gray-900">4,900원</span>
+                                </div>
+                                <button 
+                                    onClick={() => setStep(1)}
+                                    className="w-full py-4 bg-[#3182F6] text-white rounded-xl font-bold shadow-lg active:scale-95 transition"
+                                >
+                                    4,900원 결제하기
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 1 && (
+                        <div className="flex-1 flex flex-col bg-gray-50">
+                            <div className="flex-1 flex flex-col items-center justify-center p-6">
+                                <h2 className="text-xl font-bold mb-8">비밀번호 입력</h2>
+                                <div className="flex gap-4 mb-8">
+                                    {[0,1,2,3,4,5].map(i => (
+                                        <div key={i} className={`w-4 h-4 rounded-full ${i < password.length ? 'bg-[#3182F6]' : 'bg-gray-300'}`}></div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="bg-white pb-8 pt-4 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+                                <div className="keypad-grid">
+                                    {[1,2,3,4,5,6,7,8,9].map(num => (
+                                        <div key={num} onClick={() => handleKeypad(num)} className="keypad-btn hover:bg-gray-50">{num}</div>
+                                    ))}
+                                    <div className="keypad-btn"></div>
+                                    <div onClick={() => handleKeypad(0)} className="keypad-btn hover:bg-gray-50">0</div>
+                                    <div onClick={handleDelete} className="keypad-btn hover:bg-gray-50"><Icon d={Icons.ArrowLeft} /></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white">
+                            <div className="w-16 h-16 border-4 border-gray-100 border-t-[#3182F6] rounded-full animate-spin mb-6"></div>
+                            <h2 className="text-xl font-bold text-gray-800">결제 승인 중...</h2>
+                            <p className="text-gray-400 text-sm mt-2">잠시만 기다려주세요</p>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+    // [수정] 전문가 리포트 화면 : profile 데이터를 연동하여 수치와 그래프가 동적으로 변함
+	function ExpertReportScreen({ onBack, profile }) {
+    // 1. 내 데이터 기반 미래 자산 계산
+		const currentAsset = profile.totalAssets;
+		const annualSaving = profile.monthlyIncome * 12 * 0.3; // (가정) 소득의 30% 저축
+		const asset5y = Math.round(currentAsset * 1.21 + (annualSaving * 5.4)); 
+		const asset10y = Math.round(currentAsset * 1.48 + (annualSaving * 12)); 
+		const assetRetire = Math.round(currentAsset * 2.2 + (annualSaving * 25)); 
+
+    // ▼▼▼ [수정] 통계청 '2023 가계금융복지조사' 평균 순자산 데이터 (단위: 만원) ▼▼▼
+		const KOREA_AVG_ASSETS = {
+			20: 8539,   // 20대 평균 순자산: 약 8,500만원
+			30: 27300,  // 30대 평균 순자산: 약 2억 7,300만원
+			40: 45600,  // 40대 평균 순자산: 약 4억 5,600만원
+			50: 51000,  // 50대 평균 순자산: 약 5억 1,000만원
+			60: 48630   // 60대 이상 평균: 약 4억 8,600만원
+		};
+
+    // 사용자 나이대 계산 (예: 34 -> 30, 29 -> 20)
+		const ageGroup = Math.floor(profile.age / 10) * 10;
+    // 데이터 없는 나이대(10대 이하나 70대 이상)는 가장 가까운 기준 적용
+		const standardAsset = KOREA_AVG_ASSETS[ageGroup] || KOREA_AVG_ASSETS[60];
+    
+    // 평균 대비 비율 계산
+		const assetRatio = currentAsset / standardAsset;
+
+    // 등급 및 멘트 결정 로직
+		let grade = "";
+		let rankPercent = 0;
+		let diagnosisTitle = "";
+		let diagnosisDesc = "";
+
+		if (assetRatio >= 2.5) { // 평균의 2.5배 이상 (상위권)
+			grade = "💎";
+			rankPercent = 5; // 상위 5% 이내 추정
+			diagnosisTitle = "최상위권 재무 상태";
+			diagnosisDesc = (
+            <span>
+                또래 평균 자산({Math.round(standardAsset/10000)}억) 대비 <span className="font-bold text-white underline">2.5배 이상</span>의 압도적인 자산을 보유 중입니다. 자산 증식보다는 '절세'와 '자산 배분'에 집중하여 지키는 전략이 필요합니다.
+            </span>
+			);
+		} else if (assetRatio >= 1.2) { // 평균의 1.2배 이상 (중상위권)
+			grade = "🥇";
+			rankPercent = 25; // 상위 25% 이내 추정
+			diagnosisTitle = "탄탄한 우상향";
+			diagnosisDesc = (
+            <span>
+                대한민국 {ageGroup}대 평균({Math.round(standardAsset/10000)}억)보다 <span className="font-bold text-white">{Math.round((assetRatio-1)*100)}% 더 많은 자산</span>을 잘 모으셨습니다. 현재 흐름을 유지하되 투자 비중을 조금 더 늘려보세요.
+            </span>
+			);
+		} else if (assetRatio >= 0.7) { // 평균의 70% ~ 120% (평균 수준)
+			grade = "🥈";
+			rankPercent = 50; // 딱 중간
+			diagnosisTitle = "평균적인 성장세";
+			diagnosisDesc = (
+            <span>
+                대한민국 표준인 {ageGroup}대 평균 자산({Math.round(standardAsset/10000)}억)과 비슷한 흐름입니다. 지금부터 <span className="font-bold text-white border-b border-white/40">월 저축액을 30만원만 더</span> 늘려도 5년 뒤 상위권 진입이 가능합니다.
+            </span>
+			);
+		} else { // 평균 이하
+			grade = "🌱";
+			rankPercent = 78;
+			diagnosisTitle = "성장 잠재력 보유";
+			diagnosisDesc = (
+            <span>
+                아직 자산 형성이 초기 단계입니다. (평균: {Math.round(standardAsset/10000)}억). 하지만 소득 흐름이 있다면 충분히 만회 가능합니다. <span className="font-bold text-white text-yellow-300">통장 쪼개기</span>부터 시작해 시드머니 1억을 목표로 하세요.
+            </span>
+			);
+		}
+    // ▲▲▲ [수정 완료] ▲▲▲
+
+    // 2. 그래프 높이(%) 계산
+		const getPercent = (val) => {
+			if (assetRetire === 0) return 0;
+			const pct = (val / assetRetire) * 100;
+			return pct > 100 ? 100 : (pct < 5 ? 5 : pct);
+		};
+
+    // 3. 금액 포맷팅
+		const formatAsset = (val) => {
+			if (val >= 10000) return `${(val/10000).toFixed(1)}억원`;
+			return `${Math.round(val).toLocaleString()}만원`;
+		};
+
+    return (
+        <div className="flex-1 flex flex-col bg-white animate-fade-in relative overflow-hidden h-full">
+            {/* Header */}
+            <div className="flex items-center p-4 border-b border-gray-100 sticky top-0 bg-white z-20">
+                <button onClick={onBack} className="p-2 -ml-2 text-gray-800 hover:bg-gray-100 rounded-full">
+                    <ArrowLeft size={24} />
+                </button>
+                <h2 className="text-lg font-bold ml-2 text-[#3182F6]">Premium Report</h2>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 pb-20 hide-scrollbar">
+                <div className="bg-gradient-to-br from-[#3182F6] to-[#1B64DA] rounded-3xl p-6 text-white mb-8 shadow-xl">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <div className="bg-white/20 px-2 py-1 rounded text-xs font-bold inline-block mb-2">전문가 정밀 진단</div>
+                            <h3 className="text-2xl font-bold leading-tight">
+                                {profile.job} {profile.age}세<br/>
+                                상위 {rankPercent}% {diagnosisTitle}
+                            </h3>
+                        </div>
+                        <div className="text-4xl">{grade}</div>
+                    </div>
+                    <p className="text-white/80 text-sm leading-relaxed">
+                        {diagnosisDesc}
+                    </p>
+                    {/* 데이터 출처 명시 (신뢰도 상승) */}
+                    <div className="text-[10px] text-white/40 mt-3 text-right">
+                        * 데이터 기준: 2023 통계청 가계금융복지조사
+                    </div>
+                </div>
+
+                <div className="space-y-8">
+                    {/* Section 1 */}
+                    <div>
+                        <h4 className="flex items-center gap-2 text-lg font-bold text-gray-900 mb-4">
+                            <span className="w-1 h-6 bg-black rounded-full"></span>
+                            현금 흐름 심층 분석
+                        </h4>
+                        <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                            <div className="mb-4">
+                                <div className="text-sm text-gray-500 mb-1">예상 은퇴 시점 자산</div>
+                                <div className="text-2xl font-bold text-gray-900">{formatAsset(assetRetire)}</div>
+                            </div>
+                            
+                            <div className="h-[180px] w-full bg-white rounded-xl mb-4 flex items-end justify-between border border-gray-100 px-2 pb-2 pt-10">
+                                <div className="w-8 bg-gray-200 rounded-t relative group transition-all duration-1000" style={{ height: `${getPercent(currentAsset)}%` }}>
+                                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 whitespace-nowrap">현재</span>
+                                </div>
+                                <div className="w-8 bg-gray-300 rounded-t relative group transition-all duration-1000 delay-100" style={{ height: `${getPercent(asset5y)}%` }}>
+                                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 whitespace-nowrap">5년후</span>
+                                </div>
+                                <div className="w-8 bg-blue-300 rounded-t relative group transition-all duration-1000 delay-200" style={{ height: `${getPercent(asset10y)}%` }}>
+                                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 whitespace-nowrap">10년후</span>
+                                </div>
+                                <div className="w-8 bg-[#3182F6] rounded-t relative group transition-all duration-1000 delay-300" style={{ height: '100%' }}>
+                                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-[#3182F6] font-bold whitespace-nowrap">은퇴</span>
+                                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full"></div>
+                                </div>
+                            </div>
+                            
+                            <p className="text-sm text-gray-600 leading-relaxed">
+                                현재 저축률을 유지할 경우 은퇴 시점까지 목표 자산의 85%를 달성할 것으로 보입니다. 다만 물가상승률 3% 가정 시 <span className="text-red-500 font-bold">실질 구매력은 30% 감소</span>할 수 있습니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Section 2 */}
+                    <div>
+                        <h4 className="flex items-center gap-2 text-lg font-bold text-gray-900 mb-4">
+                            <span className="w-1 h-6 bg-black rounded-full"></span>
+                            AI 추천 포트폴리오 재조정
+                        </h4>
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-2xl">
+                                <div>
+                                    <div className="text-xs text-gray-500 mb-1">현재 비중이 높음</div>
+                                    <div className="font-bold">국내 예적금 (60%)</div>
+                                </div>
+                                <div className="text-red-500 font-bold text-sm">▼ 20% 축소</div>
+                            </div>
+                            <div className="flex items-center justify-center text-gray-300">⬇</div>
+                            <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+                                <div>
+                                    <div className="text-xs text-blue-500 mb-1">추천 이동처</div>
+                                    <div className="font-bold text-[#3182F6]">미국 배당성장 ETF</div>
+                                </div>
+                                <div className="text-[#3182F6] font-bold text-sm">▲ 20% 확대</div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2 px-2">
+                                * 미국 S&P500 기반의 배당 성장주에 투자하여 달러 자산 확보 및 연 3~4%의 배당 수익을 추가로 노리는 전략입니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Section 3 */}
+                    <div>
+                        <h4 className="flex items-center gap-2 text-lg font-bold text-gray-900 mb-4">
+                            <span className="w-1 h-6 bg-black rounded-full"></span>
+                            절세 & 연금 최적화
+                        </h4>
+                        <ul className="space-y-3">
+                            <li className="flex gap-3 text-sm text-gray-700 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                <span className="text-green-500 font-bold">Check 1</span>
+                                <span>IRP 계좌에 연 300만원 추가 납입 시 연말정산 <span className="font-bold underline">39.6만원 환급</span> 가능</span>
+                            </li>
+                            <li className="flex gap-3 text-sm text-gray-700 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                <span className="text-green-500 font-bold">Check 2</span>
+                                <span>ISA 만기 자금을 연금저축으로 이전하여 <span className="font-bold underline">과세 이연 효과</span> 극대화 필요</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="mt-10 p-6 bg-gray-900 rounded-3xl text-center">
+                    <h5 className="text-white font-bold mb-2">1:1 재무 상담권</h5>
+                    <p className="text-gray-400 text-xs mb-4">프리미엄 회원 전용 혜택입니다.</p>
+                    <button className="bg-[#3182F6] text-white px-6 py-3 rounded-xl text-sm font-bold">상담 예약하기</button>
+                </div>
+            </div>
+        </div>
+		);
+	}
 
         function InputScreen({ inputData, analyzedData, onBack, onMyData, onChange, onSubmit }) {
           const handleInputChange = (e) => {
@@ -1724,7 +2055,8 @@
             const [lifestyle, setLifestyle] = React.useState('standard'); 
             const [activeRisks, setActiveRisks] = React.useState({}); 
             const [savings, setSavings] = React.useState(0); 
-            const [isSubscribed, setIsSubscribed] = React.useState(false);
+            const [isPremium, setIsPremium] = React.useState(false); // 구독 상태 확인
+            const [showPayment, setShowPayment] = React.useState(false); // 결제창 표시
 
             const [isLoggedIn, setIsLoggedIn] = React.useState(false);
 
@@ -1829,11 +2161,18 @@
 
             const resetAll = () => { 
                 setScreen('intro'); setProfile(null); setSimulationResult(null); setAnalyzedData(null);
-                setActiveRisks({}); setSavings(0); setLifestyle('standard'); setIsSubscribed(false); 
+                setActiveRisks({}); setSavings(0); setLifestyle('standard'); setIsPremium(false); 
                 setInputData({ age: 30, jobType: 'office', monthlyIncome: 300, totalAssets: '', monthlyExpense: '' });
                 setSelectedProductType(null); resultScrollPos.current = 0; 
             };
-            const handleSubscribe = () => { setIsSubscribed(true); alert("✅ 구독 완료! 매주 리포트를 보내드립니다."); };
+            
+            // 결제 완료 처리
+            const handlePaymentComplete = () => {
+                setIsPremium(true);
+                setShowPayment(false);
+                alert("✅ 구독이 완료되었습니다!");
+            };
+
             const handleProductClick = (typeKey) => { 
                 if (resultContainerRef.current) { resultScrollPos.current = resultContainerRef.current.scrollTop; }
                 setSelectedProductType(typeKey); setScreen('product');
@@ -1864,6 +2203,14 @@
             return (
                 <div className="w-full max-w-[420px] bg-white shadow-2xl overflow-hidden flex flex-col h-full sm:h-[85vh] sm:max-h-[900px] sm:rounded-[32px] sm:border-[8px] sm:border-white relative transition-all">
                     
+                    {/* 결제 모달/화면 */}
+                    {showPayment && (
+                        <PaymentScreen 
+                            onBack={() => setShowPayment(false)}
+                            onComplete={handlePaymentComplete}
+                        />
+                    )}
+
                     {screen === 'intro' && <IntroScreen onStart={() => setScreen('input')} />}
 
                     {screen === 'input' && (
@@ -1906,7 +2253,7 @@
                         <HomeScreen 
                             userName={signupForm.name || '경경경'}
                             onViewResult={() => setScreen('result')}
-                            onProductClick={handleProductClick} // 여기: 상품 클릭 핸들러 전달
+                            onProductClick={handleProductClick} 
                         />
                     )}
 
@@ -1916,8 +2263,15 @@
                             onBack={() => setScreen('result')}
                         />
                     )}
+                    
+                    {screen === 'expert' && profile && (
+                        <ExpertReportScreen 
+                            profile={profile}
+                            onBack={() => setScreen('result')}
+                        />
+                    )}
 
-                    {/* ResultScreen: 기존 로직을 그대로 유지하되 렌더링 */}
+                    {/* ResultScreen */}
                     {screen === 'result' && profile && simulationResult && (
                         <div ref={resultContainerRef} className="flex-1 overflow-y-auto hide-scrollbar pb-10 animate-fade-in relative bg-white">
                             <div className="sticky top-0 bg-white z-20 p-6 pb-2 border-b border-gray-50 shadow-sm">
@@ -2064,10 +2418,31 @@
                                             <div className="bg-[#E8F3FF] p-5 rounded-2xl mb-6">
                                                 <div className="flex items-start gap-3">
                                                     <div className="bg-white p-2 rounded-full text-[#3182F6]"><Icon d={Icons.Bell} /></div>
-                                                    <div>
+                                                    <div className="flex-1">
                                                         <h3 className="font-bold text-[#3182F6] text-sm mb-1">매주 리포트 받기</h3>
                                                         <p className="text-xs text-gray-600 mb-3">변동되는 자산 수명을<br/>매주 알림으로 체크하세요.</p>
-                                                        <button onClick={handleSubscribe} disabled={isSubscribed} className={`w-full py-3 rounded-xl text-sm font-bold transition ${isSubscribed ? 'bg-gray-400 text-white cursor-default' : 'bg-[#3182F6] text-white active:scale-95 shadow-md'}`}>{isSubscribed ? '구독 중' : '구독하기'}</button>
+                                                        {isPremium ? (
+                                                            <div className="space-y-2">
+                                                                <button className="w-full py-3 rounded-xl text-sm font-bold bg-[#E8F3FF] text-[#3182F6] border border-[#3182F6] cursor-default flex items-center justify-center gap-2">
+                                                                    <Check size={16} />
+                                                                    구독 중
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => setScreen('expert')}
+                                                                    className="w-full py-3 rounded-xl text-sm font-bold bg-[#3182F6] text-white active:scale-95 shadow-md flex items-center justify-center gap-2"
+                                                                >
+                                                                    <Star size={16} fill="white" />
+                                                                    전문가 리포트 보기
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button 
+                                                                onClick={() => setShowPayment(true)} 
+                                                                className="w-full py-3 rounded-xl text-sm font-bold bg-[#3182F6] text-white active:scale-95 shadow-md transition"
+                                                            >
+                                                                구독하기
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
